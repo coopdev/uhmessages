@@ -201,17 +201,8 @@ function addAffiliation($msg)
       } catch  {
          writeErrorsFor($uhUuid)
       }      
-   }     
-   
-   $group = getUsersUHGroup($aff) 
-   
-   if ( ($user = getUHADUser($uid)) -ne $False ) {
-      try {
-         Add-ADGroupMember -Identity $group -Members $user         
-      } catch  {
-         writeErrorsFor($uhUuid)
-      }      
-   }       
+   }   
+      
    
    # if ($user.memberOf.count -gt 0) {      
       # $currentGroup = $user.MemberOf[0]            
@@ -256,21 +247,6 @@ function modifyAffiliation($msg)
    }   
    
    
-   if ( ($user = getUHADUser($uid)) -eq $False ) {
-      return
-   }  
-   
-   $newGroup = getUsersUHGroup($aff) 
-   $prevUHGroup = targetUHGroup($prevGroup)
-
-   try {   
-      Remove-ADGroupMember -Identity $prevUHGroup -Members $user -Confirm:$False
-      Add-ADGroupMember -Identity $newGroup -Members $user      
-   } catch {
-      writeErrorsFor($uhUuid)
-   }   
-   
-   
 }
 
 function deleteAffiliation($msg)
@@ -304,20 +280,6 @@ function deleteAffiliation($msg)
       #write $_.exception
    }  
 
-   
-   
-   if ( ($user = getUHADUser($uid)) -eq $False ) {
-      return
-   }   
-      
-   $group = getUsersUHGroup($aff)         
-   
-   try {      
-      Remove-ADGroupMember -Identity $group -Members $user -Confirm:$False      
-   } catch {
-      writeErrorsFor($uhUuid)
-      #write $_.exception
-   }   
 }
 
 function retrofitAffiliation($msg)
@@ -329,7 +291,35 @@ function retrofitAffiliation($msg)
    }
 }
 
+####### EMAIL MESSAGES #######
 
+function addEmail($msg)
+{
+   $email  = $msg.emailAddress
+   $uhUuid = $msg.uhUuid
+   
+   $user = Get-ADUser -Filter { employeeID -eq $uhUuid }
+   
+   if ($email -match "^[a-z,0-9]*@hawaii.edu") {
+      try {
+         Set-ADUser -Identity $user -EmailAddress $email
+      } catch {
+         writeErrorsFor($uhUuid)
+      }
+   }
+   
+}
+
+function retrofitEmail($msg)
+{
+   $actions = $msg.actions.childNodes
+   
+   foreach ($a in $actions) {
+      addEmail($a.messageData)
+   }     
+}
+
+####### END EMAIL MESSAGES #######
 
 
 
@@ -354,26 +344,6 @@ function getUsersGroup($aff)
    }
 }
 
-function getUsersUHGroup($aff)
-{   
-   if ($aff.org -ne "hcc") {
-      return $uhOthers
-   }
-   
-   $role = checkEmptyVal($aff.role)   
-   $roleParts = $role.split(".")      
-   
-   switch ($roleParts[0]) 
-   {
-      "faculty"   { return $uhFaculty   }
-      
-      "staff"     { return $uhStaff     }
-
-      "student"   { return $uhStudents  }
-  
-      default     { return ""         }        
-   }
-}
 
 function getADUser($employeeId)
 {   
@@ -388,18 +358,6 @@ function getADUser($employeeId)
    return $user
 }
 
-function getUHADUser($username)
-{   
-   try {
-      $user = get-aduser -Identity $username -Server $uhADServer -Credential $uhADCreds -Properties "MemberOf", "employeeType"
-   }
-   catch {
-      writeErrorsFor($username)
-      return $false
-   }   
-   
-   return ,$user
-}
 
 # Returns " " if $val is null or empty string.
 # Returns $val otherwise.
@@ -462,20 +420,6 @@ function targetGroup($affMap,$affID)
    }      
 }
 
-# Returns the appropriate UH group based on the passed in local group.
-function targetUHGroup($localGroup)
-{
-   switch ($localGroup)
-   {
-      $Faculty  { return $uhFaculty  }
-      
-      $Staff    { return $uhStaff    }
-      
-      $Students { return $uhStudents }
-      
-      $Others   { return $uhOthers   }   
-   }
-}
 
 function writeErrorsFor($uhuuid)
 {

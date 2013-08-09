@@ -10,14 +10,6 @@ Import-Module ActiveDirectory
 . ".\inc\config-vars.ps1"
 
 # Init global variables
-#$uhADCreds    = Get-Credential
-$uhADServer   = ""
-
-# UH AD groups.
-$uhFaculty    = ""
-$uhStaff      = ""
-$uhStudents   = ""
-$uhOthers     = ""
 
 # Local groups.
 $Faculty      = "Local Faculty"
@@ -70,6 +62,10 @@ while($MysqlReader.read()) {
          "modifyAffiliation"          { modifyAffiliation $msg      } 
          
          "deleteAffiliation"          { deleteAffiliation $msg      }
+         
+         "addEmail"                   { addEmail $msg               }
+         
+         "retrofitEmail"              { retrofitEmail $msg          }
       
       } # End switch.
    }
